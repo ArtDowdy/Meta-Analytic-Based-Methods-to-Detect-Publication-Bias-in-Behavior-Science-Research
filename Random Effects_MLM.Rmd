@@ -1,0 +1,69 @@
+---
+title: "Random Effects_MLM"
+author: "Art Dowdy, dowdy@temple.edu"
+---
+
+## R Markdown
+
+```{r setup, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+library(tidyverse)
+library(clubSandwich)
+library(metafor)
+library(kableExtra)
+
+#Data have been wrangled and tidied and log response ratio effect sizes per participant have been computed.
+
+PB_V <- read_csv("PB_Var.csv", col_names = TRUE)
+
+## Full random effects MLM with "REML" estimation
+
+full.model <- rma.mv(y,
+                     v,
+                     random = ~ 1 | ID_1/ID_2,
+                     tdist = TRUE,
+                     data = PB_V,
+                     method = "REML")
+
+summary(full.model)
+
+## Subgroup analysis of publication bias
+
+pb.mod.model <- rma.mv(y,
+                       v,
+                       random = ~ 1 | ID_1/ID_2,
+                       tdist = TRUE,
+                       data = PB_V,
+                       method = "REML",
+                       mods = ~ grey)
+
+summary(pb.mod.model)
+
+## Grey literature pooled effect size without small sample correction 
+
+(1.5266) + (-1.9074) 
+
+##Estimated cluster-robust variance estimation (CRVE) of outcomes using    clubSandwich and metafor
+
+ crve.pb.mod.model <- coef_test(pb.mod.model,
+                      vcov = "CR2")
+
+ print(crve.pb.mod.model)
+ 
+ ## Cleanup Output 
+ 
+ crve.pb.mod.model <- rename(crve.pb.mod.model,
+                             Effect_Size = beta,
+                             Robust_Standard_Error = SE,
+                             Robust_t_stat = tstat,
+                             Degrees_of_Freedom = df,
+                             p_value = p_Satt) 
+ 
+                     kbl(crve.pb.mod.model) %>%
+                        kable_styling()
+```
+

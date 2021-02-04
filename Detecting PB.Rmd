@@ -1,0 +1,68 @@
+---
+title: "Detecting Publication Bias Methods"
+author: "Art Dowdy, dowdy@temple.edu"
+date: "1/29/2021"
+output: html_document
+---
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(metafor)
+library(clubSandwich)
+
+data <- read_csv("PB_published only.csv", col_names = TRUE)
+view(data)
+
+#Random effects model meta-analysis. Log response ratio effect sizes presented at the study level.
+
+pub.model <- rma.mv(y,
+                    v,
+                    mods = ~ study,
+                    random = ~ 1 | ID_1/ID_2,
+                    struct = "UN",
+                    method = "REML",
+                    data = data)
+ 
+summary(pub.model)
+
+#Cluster robust variance estimation (CRVE)
+
+pub.model.crve <- coef_test(pub.model, vcov = "CR2")
+summary(pub.model.crve)
+
+#CRVE funnel plot showing log response ratios on the abscissa and standard error on the ordinate. 
+
+pub.model.crve.f <- rma(beta, SE, data = pub.model.crve)
+summary(pub.model.crve.f)
+
+funnel(pub.model.crve.f, 
+      xlab = "Log Response Ratio Effect Size", 
+      ylab = "Standard Error")
+
+#Egger Regression Test of included studies that were estimated using a random effects model (rma) while setting the predictor to standard error (sei). Variations of the regression tests can be conducted using the regtest.ram function in the metafor package.
+
+regtest.rma (pub.model.crve.f,
+             model = "rma",
+             predictor = "sei",
+             ret.fit = TRUE,
+             digits = 2)
+
+# Trim and Fill method to predict the number of missing studies. Based upon the both visual analysis and regression tests this step is not necessary; however, for demonstration purposes we have applied the trim and fill procedure to our data set, so that both the code and output can be viewed.
+ 
+trim_and_fill <- trimfill.rma.uni(pub.model.crve.f,
+                                  estimator = "R0",
+                                  maxiter = 1000,
+                                  legend = TRUE)
+summary(trim_and_fill)
+
+#Fail-Safe N, sometimes referred to as the file drawer analysis, statistical output that includes the Orwin (1983) method.
+
+fsn (beta,
+     SE,
+     data = pub.model.crve,
+     type = "Orwin",
+     digits = 2)
+```
+
+
